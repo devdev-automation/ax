@@ -14,6 +14,7 @@ create_instance() {
     user_data="$5"
     disk="$6"
 
+
     # Default disk size to 20 if not provided
     if [[ -z "$disk" || "$disk" == "null" ]]; then
         disk="20"
@@ -23,9 +24,20 @@ create_instance() {
 
     security_group_name="$(cat "$AXIOM_PATH/axiom.json" | jq -r '.security_group_name')"
     security_group_id="$(cat "$AXIOM_PATH/axiom.json" | jq -r '.security_group_id')"
+    subnet_id="$(cat "$AXIOM_PATH/axiom.json" | jq -r '.subnet_id')"
+
+    # Check if subnet_id was specified
+    if [[ "$subnet_id" != "null" ]]; then
+        subnet_id_option="--subnet-id $subnet_id"
+        #
+        security_group_name="null"
+    else
+        echo "Warning: subnet_id not specified in axiom.json, using default subnet."
+        subnet_id_option=""
+    fi
 
     # Determine whether to use security_group_name or security_group_id
-    if [[ -n "$security_group_name" && "$security_group_name" != "null" ]]; then
+    if [[ -z "$subnet_id" && -n "$security_group_name" && "$security_group_name" != "null" ]]; then
         security_group_option="--security-groups $security_group_name"
     elif [[ -n "$security_group_id" && "$security_group_id" != "null" ]]; then
         security_group_option="--security-group-ids $security_group_id"
@@ -41,6 +53,8 @@ create_instance() {
         --instance-type "$size" \
         --region "$region" \
         $security_group_option \
+        $subnet_id_option \
+        --associate-public-ip-address \
         --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$name}]" \
         --user-data "$user_data" \
         $disk_option 2>&1 >> /dev/null
@@ -92,7 +106,7 @@ instances() {
     local tempdir
     tempdir=$(mktemp -d)
     local regions
-    regions=$(aws ec2 describe-regions --query "Regions[].RegionName" --output text)
+    regions=$(aws ec2 describe-regions --region-names us-east-1 --query "Regions[].RegionName" --output text)
 
     # Fetch describe-instances for each region in parallel
     for region in $regions; do
@@ -331,7 +345,7 @@ get_image_id() {
 
     if [[ "$all_regions" == "--all-regions" ]]; then
         tempdir=$(mktemp -d)
-        for r in $(aws ec2 describe-regions --query "Regions[].RegionName" --output text); do
+        for r in $(aws ec2 describe-regions --region-names us-east-1 --query "Regions[].RegionName" --output text); do
             (
                 aws ec2 describe-images --owners self --region "$r" \
                     --query "Images[*].[Name,ImageId]" --output json \
@@ -358,7 +372,7 @@ get_snapshots() {
     tmp=$(mktemp -d)
     printf "%-40s %-8s %-s\n" "Name" "Size(GB)" "Regions"
 
-    for region in $(aws ec2 describe-regions --query "Regions[].RegionName" --output text); do
+    for region in $(aws ec2 describe-regions --region-names us-east-1 --query "Regions[].RegionName" --output text); do
         (
             aws ec2 describe-images --owners self --region "$region" \
                 --query "Images[*].[Name,BlockDeviceMappings[0].Ebs.VolumeSize]" --output text \
@@ -516,12 +530,12 @@ transfer_snapshot() {
 # Get data about regions
 # used by axiom-regions
 list_regions() {
-    aws ec2 describe-regions --query "Regions[*].RegionName" | jq -r '.[]'
+    aws ec2 describe-regions --region-names us-east-1 --query "Regions[*].RegionName" | jq -r '.[]'
 }
 
 # used by axiom-regions
 regions() {
-    aws ec2 describe-regions --query "Regions[*].RegionName" | jq -r '.[]'
+    aws ec2 describe-regions --region-names us-east-1 --query "Regions[*].RegionName" | jq -r '.[]'
 }
 
 ###################################################################
@@ -601,7 +615,7 @@ delete_instances() {
     name_array=($names)
 
     local regions
-    regions=$(aws ec2 describe-regions --query "Regions[].RegionName" --output text)
+    regions="us-east-1"
 
     # Fetch minimized instance data per region in parallel
     for region in $regions; do

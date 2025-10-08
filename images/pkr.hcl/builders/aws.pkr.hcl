@@ -20,11 +20,27 @@ variable "default_disk_size" {
 }
 
 source "amazon-ebs" "packer" {
-  access_key = var.aws_access_key
-  secret_key = var.aws_secret_access_key
+  #access_key = var.aws_access_key
+  #secret_key = var.aws_secret_access_key
   region     = var.region
   ami_name   = var.snapshot_name
   instance_type = var.default_size
+  security_group_id = var.security_group_id
+  associate_public_ip_address = true
+  ssh_interface = "private_ip"
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens = "required"
+    http_put_response_hop_limit = 1
+  }
+  imds_support  = "v2.0" # enforces imdsv2 support on the resulting AMI
+
+  subnet_filter {
+    filters = {
+      "tag:Name": "Assessment Operations"
+    }
+  }
 
   launch_block_device_mappings {
     device_name           = "/dev/sda1"

@@ -142,8 +142,7 @@ echo -e -n "${Green}Please enter a security group name above or press enter to c
 read SECURITY_GROUP
 
 # Get all available AWS regions
-all_regions=$(aws ec2 describe-regions --query "Regions[].RegionName" --output text)
-
+all_regions=$(aws ec2 describe-regions --region-names us-east-1 --query "Regions[].RegionName" --output text)
 echo -e "${BGreen}Creating or reusing the security group '$SECURITY_GROUP' in ALL AWS regions...${Color_Off}"
 
 # We will track the "last" group_id and group_owner_id found or created
