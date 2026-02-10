@@ -10,6 +10,10 @@ variable "op_random_password" {
   type = string
 }
 
+variable "security_group_id" {
+  type = string
+}
+
 variable "snapshot_name" {
   type = string
 }
@@ -19,28 +23,42 @@ variable "default_disk_size" {
   default = 20
 }
 
+variable "associate_public_ip_address" {
+  type    = bool
+  default = false
+}
+
+variable "aws_access_key" {
+  type = string
+  default = null
+}
+
+variable "aws_secret_access_key" {
+  type = string
+  default = null
+}
+
+variable "aws_vpc_id" {
+  type = string
+}
+
+variable "aws_subnet_id" {
+  type = string
+}
+
+
 source "amazon-ebs" "packer" {
-  #access_key = var.aws_access_key
-  #secret_key = var.aws_secret_access_key
+  access_key = var.aws_access_key != null ? var.aws_access_key : null
+  secret_key = var.aws_secret_access_key != null ? var.aws_secret_access_key : null
+  profile    = var.aws_profile != null ? var.aws_profile : null
   region     = var.region
+  vpc_id     = var.aws_vpc_id
+  subnet_id  = var.aws_subnet_id
+  security_group_id = var.security_group_id
   ami_name   = var.snapshot_name
   instance_type = var.default_size
-  security_group_id = var.security_group_id
-  associate_public_ip_address = true
+  associate_public_ip_address = var.associate_public_ip_address
   ssh_interface = "private_ip"
-
-  metadata_options {
-    http_endpoint = "enabled"
-    http_tokens = "required"
-    http_put_response_hop_limit = 1
-  }
-  imds_support  = "v2.0" # enforces imdsv2 support on the resulting AMI
-
-  subnet_filter {
-    filters = {
-      "tag:Name": "Assessment Operations"
-    }
-  }
 
   launch_block_device_mappings {
     device_name           = "/dev/sda1"
