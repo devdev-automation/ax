@@ -113,7 +113,7 @@ instances() {
 
     # Fetch describe-instances for each region in parallel
     for region in $regions; do
-        aws ec2 describe-instances --region "$region" --output json > "$tempdir/$region.json" 2>/dev/null &
+        aws ec2 describe-instances --region "$region" --output json > "$tempdir/$region.json" &
     done
     wait
 
@@ -351,7 +351,7 @@ get_image_id() {
         for r in $(aws ec2 describe-regions --query "Regions[].RegionName" --output text); do
             (
                 aws ec2 describe-images --owners self --region "$r" \
-                    --query "Images[*].[Name,ImageId]" --output json 2>/dev/null \
+                    --query "Images[*].[Name,ImageId]" --output json \
                 | jq -r --arg query "$query" --arg region "$r" '.[] | select(.[0] | startswith($query)) | "\(. [1]) \($region)"' > "$tempdir/$r.txt"
             ) &
         done
@@ -378,7 +378,7 @@ get_snapshots() {
     for region in $(aws ec2 describe-regions --query "Regions[].RegionName" --output text); do
         (
             aws ec2 describe-images --owners self --region "$region" \
-                --query "Images[*].[Name,BlockDeviceMappings[0].Ebs.VolumeSize]" --output text 2>/dev/null \
+                --query "Images[*].[Name,BlockDeviceMappings[0].Ebs.VolumeSize]" --output text \
             | awk -v r="$region" '{OFS="\t"; print $1, $2, r}' >> "$tmp/all.txt"
         ) &
     done
